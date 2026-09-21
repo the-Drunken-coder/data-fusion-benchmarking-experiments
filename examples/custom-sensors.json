@@ -1,0 +1,28 @@
+{
+  "scenario": "crossing",
+  "seed": 102,
+  "kind": "exploratory",
+  "object_count": 4,
+  "sensors": [
+    {
+      "sensor_id": "fast_near",
+      "interval_ms": 500,
+      "coverage_m": [-20, -20, 70, 100],
+      "noise_m": 1,
+      "detection_probability": 0.9,
+      "clutter_per_scan": 0.1,
+      "max_delay_ms": 500
+    },
+    {
+      "sensor_id": "slow_far",
+      "interval_ms": 2000,
+      "coverage_m": [30, -20, 140, 100],
+      "noise_m": 4,
+      "detection_probability": 0.75,
+      "clutter_per_scan": 0.5,
+      "max_delay_ms": 3000,
+      "outage_start_ms": 25000,
+      "outage_ms": 8000
+    }
+  ]
+}

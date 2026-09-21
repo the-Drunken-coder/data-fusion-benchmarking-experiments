@@ -1,0 +1,10 @@
+.venv/
+.fusion/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+web/node_modules/
+web/dist/
+.DS_Store
