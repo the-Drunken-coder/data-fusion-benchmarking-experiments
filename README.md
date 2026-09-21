@@ -60,6 +60,8 @@ Read [the protocol](docs/protocol.md), [scoring and experiment rules](docs/scori
 
 Each case contains public initialization and observation files, separately stored private truth and observation mappings, and a manifest of seeds, configuration, versions, code fingerprints, and SHA-256 hashes.
 
+Case format 2 binds the ID to the complete manifest and file hashes. Earlier cases must be regenerated before new candidate runs; generating the same conditions creates a new ID and preserves the old files. Historical runs remain readable, with their case files and settings checked against what the run recorded. These checks detect inconsistent artifacts, not a hostile user rewriting the entire workspace.
+
 Each run contains the executed system snapshot, public requests, validated track snapshots, raw stdout, stderr, measured timings, per-tick associations and metrics, an aggregate result, a text summary, and `trajectory.svg`. Failures preserve whatever valid output arrived and are explicitly marked failed. Files are never reused for another run. This is an append-only application convention, not filesystem write protection against users or hostile programs.
 
 ## Validation

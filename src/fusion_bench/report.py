@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .storage import data_root, encode, read_json, read_lines, verify
+from .storage import data_root, digest, encode, load_case, read_json, read_lines, verify
 
 
 def trajectory_plot(destination: Path, truth: list[dict], outputs: list[dict]) -> None:
@@ -137,6 +137,19 @@ def run_detail(run_id: str, root: Path | None = None) -> dict:
     path = root / "runs" / run_id
     result = load_run(run_id, root)
     case = root / "cases" / result["case_id"]
+    manifest = read_json(case / "manifest.json")
+    if "case_format" in manifest:
+        load_case(case, result["case_id"])
+    else:
+        # Historical playback uses the case hashes and settings recorded with the run.
+        verify(case, manifest["hashes"])
+    if (
+        manifest["case_id"] != result["case_id"]
+        or digest(encode(manifest["hashes"]).encode()) != result["case_hash"]
+        or manifest["config"] != result["config"]
+        or manifest["scoring"] != result["scoring"]
+    ):
+        raise ValueError("Case changed since this run was recorded")
     return {
         "result": result,
         "truth": read_lines(case / "private" / "truth.jsonl"),

@@ -23,9 +23,9 @@ from .storage import (
     encode,
     environment,
     hashes,
+    load_case,
     read_json,
     read_lines,
-    verify,
     write_json,
     write_lines,
 )
@@ -177,8 +177,7 @@ def run_candidate(
     if mode not in spec.modes:
         raise ValueError(f"{system_id} does not support {mode} mode")
     case = root / "cases" / case_id
-    manifest = read_json(case / "manifest.json")
-    verify(case, manifest["hashes"])
+    manifest = load_case(case, case_id)
     evaluator_hash = digest(Path(__file__).with_name("evaluate.py").read_bytes())
     if manifest.get("evaluator_sha256", evaluator_hash) != evaluator_hash:
         raise ValueError("Evaluator changed since this case was generated; regenerate the case")

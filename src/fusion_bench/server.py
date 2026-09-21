@@ -117,8 +117,6 @@ def launch(request: ExperimentRequest):
         raise HTTPException(422, "Selected system does not support this task")
     if request.suite and request.config.kind != "fixed":
         raise HTTPException(422, "The fixed suite cannot use exploratory overrides")
-    if not execution_lock.acquire(blocking=False):
-        raise HTTPException(409, "An experiment is already running")
     job_id = uuid.uuid4().hex[:16]
     path = data_root() / "jobs" / f"{job_id}.json"
     job = {
@@ -130,7 +128,6 @@ def launch(request: ExperimentRequest):
         "error": None,
         "owner_pid": os.getpid(),
     }
-    write_json(path, job)
 
     def execute():
         try:
@@ -158,11 +155,27 @@ def launch(request: ExperimentRequest):
         except Exception as error:
             job.update(status="failed", error=str(error))
         finally:
-            write_json(path, job)
-            execution_lock.release()
+            try:
+                write_json(path, job)
+            finally:
+                execution_lock.release()
 
-    threading.Thread(target=execute, daemon=True).start()
-    return job
+    if not execution_lock.acquire(blocking=False):
+        raise HTTPException(409, "An experiment is already running")
+    try:
+        write_json(path, job)
+        response_job = {**job, "run_ids": list(job["run_ids"])}
+        threading.Thread(target=execute, daemon=True).start()
+    except Exception as error:
+        job.update(status="failed", error=str(error))
+        try:
+            write_json(path, job)
+        except OSError:
+            pass  # The original setup error is more useful than a second failed write.
+        finally:
+            execution_lock.release()
+        raise
+    return response_job
 
 
 @app.get("/api/jobs/{job_id}")

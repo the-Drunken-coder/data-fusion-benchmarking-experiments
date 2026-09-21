@@ -7,13 +7,12 @@ import numpy as np
 
 from .schema import CaseConfig, Observation
 from .storage import (
+    case_identifier,
     data_root,
     digest,
-    encode,
     environment,
     hashes,
-    read_json,
-    verify,
+    load_case,
     write_json,
     write_lines,
 )
@@ -54,6 +53,7 @@ def world_state(obj: dict, time_ms: int) -> dict | None:
 def generate(config: CaseConfig, root: Path | None = None) -> dict:
     root = root or data_root()
     identity = {
+        "case_format": 2,
         "config": config.model_dump(),
         "generator_version": GENERATOR_VERSION,
         "scoring": SCORING,
@@ -61,12 +61,6 @@ def generate(config: CaseConfig, root: Path | None = None) -> dict:
         "generator_sha256": digest(Path(__file__).read_bytes()),
         "evaluator_sha256": digest(Path(__file__).with_name("evaluate.py").read_bytes()),
     }
-    case_id = digest(encode(identity).encode())[:16]
-    destination = root / "cases" / case_id
-    if destination.exists():
-        manifest = read_json(destination / "manifest.json")
-        verify(destination, manifest["hashes"])
-        return manifest
     root.joinpath("cases").mkdir(parents=True, exist_ok=True)
     world_seed, sensor_seed, identifier_seed = np.random.SeedSequence(config.seed).spawn(3)
     world_rng = np.random.default_rng(world_seed)
@@ -209,12 +203,16 @@ def generate(config: CaseConfig, root: Path | None = None) -> dict:
         write_json(path / "private" / "world.json", objects)
         manifest = dict(
             identity,
-            case_id=case_id,
             observation_count=len(observations),
             delivered_count=sum(o["arrived_at_ms"] <= HORIZON_MS for o in observations),
             random_streams=["world", *[f"sensor/{i}" for i in range(len(sensors))], "identifiers"],
             hashes=hashes(path),
         )
+        case_id = case_identifier(manifest)
+        manifest["case_id"] = case_id
+        destination = root / "cases" / case_id
+        if destination.exists():
+            return load_case(destination, case_id)
         write_json(path / "manifest.json", manifest)
         path.rename(destination)
     return manifest

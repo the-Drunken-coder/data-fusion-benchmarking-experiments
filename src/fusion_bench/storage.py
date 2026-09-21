@@ -55,9 +55,26 @@ def hashes(directory: Path) -> dict[str, str]:
 
 
 def verify(directory: Path, expected: dict[str, str]) -> None:
-    for name, checksum in expected.items():
-        if digest((directory / name).read_bytes()) != checksum:
+    actual = hashes(directory)
+    for name in sorted(actual.keys() | expected.keys()):
+        if actual.get(name) != expected.get(name):
             raise ValueError(f"Artifact changed: {name}")
+
+
+def case_identifier(manifest: dict) -> str:
+    """Bind the complete case descriptor and artifact hashes, excluding only its own ID."""
+    descriptor = {key: value for key, value in manifest.items() if key != "case_id"}
+    return digest(encode(descriptor).encode())[:16]
+
+
+def load_case(directory: Path, expected_id: str) -> dict:
+    manifest = read_json(directory / "manifest.json")
+    if manifest.get("case_format") != 2:
+        raise ValueError("Legacy case identity is not content-bound; regenerate the case")
+    if manifest.get("case_id") != expected_id or case_identifier(manifest) != expected_id:
+        raise ValueError("Case identity changed: manifest does not match the requested case ID")
+    verify(directory, manifest["hashes"])
+    return manifest
 
 
 def environment() -> dict:

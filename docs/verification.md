@@ -56,3 +56,9 @@ The production interface was exercised against the actual local server. Empty, l
 Desktop and 360-pixel-wide layouts were rendered. Narrow screens stack the playback plots and keep the comparison table in its own horizontal scroll area; the page itself had no horizontal overflow. Playback starts paused and advances only when requested. No browser console errors were observed during the exercised flows.
 
 See [scoring rules](scoring.md) for units, matching policies, and aggregation limits, [the protocol](protocol.md) for candidate requirements, and [current limits](../README.md#current-limits) for the implementation boundary.
+
+## PR correctness fixes
+
+After the four accepted review findings were fixed, the full suite passed with 40 tests and Ruff passed. The 15 added cases cover configuration-file precedence, recovery after launch/write failures, response snapshots, manifest identity changes, incomplete file inventories, and historical playback validation. The zero-tick aggregation suggestion and blanket docstring coverage target were left unchanged.
+
+New format-2 crossing case `d9cfe5f7d1dc3227`, tuning seed 100, completed with both references. Runs `4a86cdf0e68b4b41` and `91f513aa17f74ae4` produced byte-identical requests, outputs, and metrics to their original saved runs. Their comparison succeeded, and both original runs remained readable through the playback data loader. The new case IDs bind the complete descriptor and artifact hashes; earlier IDs cannot be used for new executions.

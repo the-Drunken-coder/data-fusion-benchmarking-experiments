@@ -42,24 +42,25 @@ def main():
     serve.add_argument("--port", type=int, default=8840)
     args = parser.parse_args()
     if args.action == "generate":
-        custom = any(
-            value is not None
-            for value in [args.objects, args.noise, args.detection_probability, args.outage_ms]
-        )
-        config = CaseConfig(
-            scenario=args.scenario,
-            seed=args.seed
-            if args.seed is not None
-            else (100 if args.partition == "tuning" else 1000),
-            partition=args.partition,
-            kind="exploratory" if custom else "fixed",
-            object_count=args.objects,
-            noise_m=args.noise,
-            detection_probability=args.detection_probability,
-            outage_ms=args.outage_ms,
-        )
         if args.config:
             config = CaseConfig.model_validate(read_json(args.config))
+        else:
+            custom = any(
+                value is not None
+                for value in [args.objects, args.noise, args.detection_probability, args.outage_ms]
+            )
+            config = CaseConfig(
+                scenario=args.scenario,
+                seed=args.seed
+                if args.seed is not None
+                else (100 if args.partition == "tuning" else 1000),
+                partition=args.partition,
+                kind="exploratory" if custom else "fixed",
+                object_count=args.objects,
+                noise_m=args.noise,
+                detection_probability=args.detection_probability,
+                outage_ms=args.outage_ms,
+            )
         print(encode(generate(config)))
     elif args.action == "run":
         if args.timeout <= 0:
