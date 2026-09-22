@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 
 from .evaluate import evaluate
-from .schema import Mode, Observation, Snapshot
+from .schema import Mode, Observation, Snapshot, SystemSpec
 from .storage import (
     data_root,
     digest,
@@ -171,9 +171,16 @@ def run_candidate(
     root: Path | None = None,
     timeout: float = 5.0,
     init_timeout: float = 30.0,
+    system_source: Path | None = None,
 ) -> dict:
     root = root or data_root()
-    spec, source = load_systems(root)[system_id]
+    if system_source is None:
+        spec, source = load_systems(root)[system_id]
+    else:
+        source = system_source
+        spec = SystemSpec.model_validate(read_json(source / "system.json"))
+        if spec.id != system_id:
+            raise ValueError("Preserved system ID does not match the requested candidate")
     if mode not in spec.modes:
         raise ValueError(f"{system_id} does not support {mode} mode")
     case = root / "cases" / case_id

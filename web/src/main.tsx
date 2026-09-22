@@ -2,6 +2,7 @@ import { StrictMode, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { api } from './api';
 import { Playback } from './Playback';
+import { Benchmark } from './Benchmark';
 import type { Catalog, Config, Detail, Job, Mode, Run, Scenario } from './types';
 import './style.css';
 
@@ -80,26 +81,37 @@ function App() {
     } catch (error) { setError(message(error)); }
     finally { setSubmitting(false); }
   }
+  async function launchBenchmark(ids: string[]) {
+    setError(''); setSubmitting(true);
+    try { setJob(await api<Job>('/api/benchmarks', { system_ids: ids })); }
+    catch (error) { setError(message(error)); }
+    finally { setSubmitting(false); }
+  }
+  function inspectBenchmark(caseId: string, runId: string) {
+    setMode('ungrouped'); setCaseId(caseId); setRunId(runId); setCompareId('');
+    document.getElementById('saved-runs')?.scrollIntoView({ block: 'start' });
+  }
   function updateConfig(values: Partial<Config>) { setConfig(current => ({ ...current, ...values })); }
   const busy = submitting || job?.status === 'running';
   return <main>
     <header className="chrome"><span className="wordmark">FUSION / LAB</span><span>Local workspace · No paid services</span></header>
     <div className="heading"><div><h1>Compare systems</h1><div className="meta"><span>Numeric tracking / v1</span><span>{currentCase ? labels[currentCase.config.scenario] : 'No case selected'}</span>{currentCase && <span>{currentCase.config.partition} · seed {currentCase.config.seed} · {currentCase.config.kind}</span>}</div></div><button onClick={() => refresh().catch(error => setError(message(error)))}>Refresh runs</button></div>
     {error && <div role="alert" className="error"><span>{error}</span><button onClick={() => setError('')}>Dismiss</button></div>}
+    <Benchmark evaluations={catalog?.benchmarks ?? []} systems={catalog?.systems ?? []} busy={busy} loading={!catalog} onLaunch={launchBenchmark} onInspect={inspectBenchmark} />
     <section className="setup"><details open={!catalog?.runs.length}><summary>Run an experiment</summary>
       <div className="fields">
-        <label>Conditions<select value={config.kind} onChange={e => setConfig({ scenario: config.scenario, seed: config.seed, partition: config.partition, kind: e.target.value === 'fixed' ? 'fixed' : 'exploratory', ...(e.target.value === 'exploratory' ? { object_count: 2, noise_m: 2, detection_probability: 0.93, outage_ms: 0 } : {}) })}><option value="fixed">Fixed benchmark</option><option value="exploratory">Exploratory experiment</option></select></label>
+        <label>Conditions<select value={config.kind} onChange={e => setConfig({ scenario: config.scenario, seed: config.seed, partition: config.partition, kind: e.target.value === 'fixed' ? 'fixed' : 'exploratory', ...(e.target.value === 'exploratory' ? { object_count: 2, noise_m: 2, detection_probability: 0.93, outage_ms: 0 } : {}) })}><option value="fixed">Standard conditions</option><option value="exploratory">Exploratory experiment</option></select></label>
         <label>Scenario<select value={config.scenario} onChange={e => { const scenario = catalog?.scenarios.find(value => value === e.target.value); if (scenario) updateConfig({ scenario }); }}>{(catalog?.scenarios ?? []).map(value => <option key={value} value={value}>{labels[value]}</option>)}</select></label>
         <label>Case set<select value={config.partition} onChange={e => { const partition = e.target.value === 'tuning' ? 'tuning' : 'evaluation'; updateConfig({ partition, seed: partition === 'tuning' ? 100 : 1000 }); }}><option value="tuning">Tuning cases</option><option value="evaluation">Held-out evaluation</option></select></label>
         <label>Seed<input type="number" min={0} max={4294967295} value={config.seed} onChange={e => updateConfig({ seed: Number(e.target.value) })} /></label>
         {config.kind === 'exploratory' && <><label>Objects<input type="number" min={1} max={20} value={config.object_count ?? 2} onChange={e => updateConfig({ object_count: Number(e.target.value) })} /></label><label>Noise (m)<input type="number" min={0.1} max={20} step={0.1} value={config.noise_m ?? 2} onChange={e => updateConfig({ noise_m: Number(e.target.value) })} /></label><label>Detection probability<input type="number" min={0} max={1} step={0.05} value={config.detection_probability ?? 0.93} onChange={e => updateConfig({ detection_probability: Number(e.target.value) })} /></label><label>Sensor B outage (s)<input type="number" min={0} max={30} value={(config.outage_ms ?? 0) / 1000} onChange={e => updateConfig({ outage_ms: Number(e.target.value) * 1000 })} /></label></>}
       </div>
       <fieldset><legend>Systems</legend>{catalog?.systems.filter(system => system.modes.includes(mode)).map(system => <label key={system.id} className="inline"><input type="checkbox" checked={selectedSystems.includes(system.id)} onChange={e => setSelectedSystems(current => e.target.checked ? [...current, system.id] : current.filter(id => id !== system.id))} />{system.name} · {system.version}</label>)}</fieldset>
-      <div className="actions"><button className="primary" disabled={busy || !selectedSystems.length} onClick={() => launch(false)}>Run selected case</button>{config.kind === 'fixed' && <button disabled={busy || !selectedSystems.length} onClick={() => launch(true)}>Run fixed suite · 7 scenarios × 2 seeds</button>}<span>New runs preserve these conditions. Existing results stay unchanged.</span></div>
+      <div className="actions"><button className="primary" disabled={busy || !selectedSystems.length} onClick={() => launch(false)}>Run selected case</button>{config.kind === 'fixed' && <button disabled={busy || !selectedSystems.length} onClick={() => launch(true)}>Run experiment suite · 7 scenarios × 2 seeds</button>}<span>New runs preserve these conditions. Existing results stay unchanged.</span></div>
       {config.partition === 'evaluation' && <p className="notice">Held-out results are for final evaluation. Freeze system settings before using this case set.</p>}
     </details></section>
-    {job && <div className="job" role="status"><span>Experiment {job.status} · {job.run_ids.length} / {job.requested} runs finished</span>{job.status === 'running' && <progress aria-label="Experiment progress" max={job.requested} value={job.run_ids.length} />}{job.status === 'failed' && <span>Inspect failed runs; partial results are not ranked.</span>}</div>}
-    <section className="results">
+    {job && <div className="job" role="status"><span>{job.kind === 'benchmark' ? 'Benchmark' : 'Experiment'} {job.status} · {job.run_ids.length} / {job.requested} runs finished</span>{job.status === 'running' && <progress aria-label="Experiment progress" max={job.requested} value={job.run_ids.length} />}{job.status === 'failed' && <span>Inspect failed runs; partial results are not ranked.</span>}</div>}
+    <section className="results" id="saved-runs">
       <div className="filters"><label>Saved case<select value={caseId} onChange={e => { setCaseId(e.target.value); setRunId(''); setCompareId(''); }}>{!cases.length && <option value="">No saved cases</option>}{cases.map(value => <option key={value.case_id} value={value.case_id}>{labels[value.config.scenario]} · {value.config.partition} · seed {value.config.seed} · {value.config.kind} · {value.case_id.slice(0, 6)}</option>)}</select></label><label>Task<select value={mode} onChange={e => { setMode(e.target.value === 'grouped' ? 'grouped' : 'ungrouped'); setCompareId(''); }}><option value="ungrouped">Ungrouped tracking</option><option value="grouped">Grouped control · oracle association</option></select></label></div>
       {mode === 'grouped' && <p className="notice">Oracle association and filtered clutter. These results are separate from ungrouped tracking.</p>}
       <div className="section-line"><h2>Same observations · {runs.length} runs</h2><span>GOSPA and RMSE: lower is better</span></div>

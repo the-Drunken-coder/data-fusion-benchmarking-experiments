@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from .generate import generate
+from .benchmark import run_benchmark
 from .report import compare, load_run
 from .runner import run_candidate
 from .schema import SCENARIOS, CaseConfig
@@ -32,6 +33,8 @@ def main():
     run.add_argument("--timeout", type=float, default=5.0)
     comparison = commands.add_parser("compare")
     comparison.add_argument("run_ids", nargs="+")
+    benchmark = commands.add_parser("benchmark", help="Run the versioned 84-run benchmark")
+    benchmark.add_argument("system_ids", nargs="+")
     imported = commands.add_parser("register")
     imported.add_argument("directory", type=Path)
     demo = commands.add_parser("demo")
@@ -73,6 +76,11 @@ def main():
         result = compare([load_run(run_id) for run_id in args.run_ids])
         print(encode(result))
         if not result["comparable"]:
+            raise SystemExit(1)
+    elif args.action == "benchmark":
+        result = run_benchmark(args.system_ids)
+        print(encode(result))
+        if result["status"] != "complete":
             raise SystemExit(1)
     elif args.action == "register":
         print(register(args.directory))

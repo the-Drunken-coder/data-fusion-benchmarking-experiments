@@ -145,7 +145,11 @@ def test_legacy_playback_remains_available_but_cannot_run_new_experiments(tmp_pa
     # Represent an earlier case whose identity did not bind its complete descriptor.
     del manifest["case_format"]
     write_json(folder / "manifest.json", manifest)
-    assert run_detail(result["run_id"], tmp_path)["result"] == result
+    detail = run_detail(result["run_id"], tmp_path)
+    assert detail["result"] == result
+    assert detail["init"] == read_json(tmp_path / "runs" / result["run_id"] / "init.json")
+    assert "seed" not in detail["init"]
+    assert "truth" not in detail["init"]
     with pytest.raises(ValueError, match="regenerate"):
         run_candidate(manifest["case_id"], "nearest", root=tmp_path)
     manifest["config"]["seed"] = 101

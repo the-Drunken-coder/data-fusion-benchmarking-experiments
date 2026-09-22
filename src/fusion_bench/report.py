@@ -152,6 +152,7 @@ def run_detail(run_id: str, root: Path | None = None) -> dict:
         raise ValueError("Case changed since this run was recorded")
     return {
         "result": result,
+        "init": read_json(path / "init.json"),
         "truth": read_lines(case / "private" / "truth.jsonl"),
         "outputs": read_lines(path / "outputs.jsonl") if (path / "outputs.jsonl").exists() else [],
         "requests": read_lines(path / "requests.jsonl"),

@@ -35,7 +35,7 @@ Each system was scored on 14 runs containing 3,508 eligible truth states. RMSE u
 
 The Kalman baseline improves aggregate position and identity performance but creates more false states. On the noisy scenario, its mean GOSPA is worse: 13.495 m versus 11.567 m for nearest report. Immediate track initiation from clutter explains this limitation. These results do not establish a universally better system.
 
-No held-out evaluation runs were used in this verification. The evaluation partition remains available for later experiments after candidate settings are frozen.
+The initial verification above used tuning cases only. The later fixed benchmark verification below uses the evaluation partition with unchanged candidate settings.
 
 ## Saved evidence
 
@@ -62,3 +62,27 @@ See [scoring rules](scoring.md) for units, matching policies, and aggregation li
 After the four accepted review findings were fixed, the full suite passed with 40 tests and Ruff passed. The 15 added cases cover configuration-file precedence, recovery after launch/write failures, response snapshots, manifest identity changes, incomplete file inventories, and historical playback validation. The zero-tick aggregation suggestion and blanket docstring coverage target were left unchanged.
 
 New format-2 crossing case `d9cfe5f7d1dc3227`, tuning seed 100, completed with both references. Runs `4a86cdf0e68b4b41` and `91f513aa17f74ae4` produced byte-identical requests, outputs, and metrics to their original saved runs. Their comparison succeeded, and both original runs remained readable through the playback data loader. The new case IDs bind the complete descriptor and artifact hashes; earlier IDs cannot be used for new executions.
+
+## Input transparency view
+
+The selected scene-and-input layout was checked against delayed-report run `8752c63f07134c71`. At 31 s it displays two actual objects, one returned track, one missed object, three newly received reports, and 80 reports received through that time. The three measurement times are 27, 27, and 28.5 s; arrivals precede their delivery at the 31 s step. The exact input message and all 80 history rows were inspected. Scrubbing to zero removes those later inputs. Both systems' input panels follow the same playback time when comparing runs.
+
+The 40 Python tests and lint passed. Three frontend data tests passed with `pnpm --dir web test`, covering future-input exclusion, delayed report timestamps, empty batches with prior history, and unconfirmed delivery after a missing response. Strict TypeScript checking and production build passed. Desktop and 360-pixel layouts were inspected; wide tables scroll within their panels without widening the page.
+
+
+## Fixed benchmark matrix
+
+Implemented approved layout C with a separate benchmark launch action, overall and scenario points, attempt range, and drill-down to recorded playback. Tuning and custom experiments do not earn this headline score.
+
+The suite passed 67 Python tests and three frontend tests. Ruff and the production TypeScript/Vite build passed. Added score tests cover fixed anchors, invalid values, exact suite membership, definition drift, equal scenario weighting, repeated-attempt variation, failed/missing/duplicate runs, incomplete timelines, incompatible modes/versions/budgets, preserved candidate bundles, and worker failure recovery.
+
+Launched evaluation `99de1962c8e14741` through the browser against the production localhost API. Both systems completed all 84 required runs under suite fingerprint `1397fb3e0a22278422898227fe8f757965240e8a7e54bdf78635e06f52b93bec`:
+
+| System | Overall points | Attempt 1 | Attempt 2 | Attempt 3 |
+| --- | ---: | ---: | ---: | ---: |
+| Kalman baseline | 63.056255 | 63.056255 | 63.056255 | 63.056255 |
+| Nearest report | 50.829026 | 50.829026 | 50.829026 | 50.829026 |
+
+Re-validated the preserved evaluation hashes and re-scored every required run from its saved artifacts. Both reports matched exactly. For each system and each of its 28 cases, the three attempts had byte-identical requests, outputs, and metrics. Runtime measurements vary and were excluded from the byte comparison.
+
+Browser checks observed the empty benchmark state, running systems with no premature score, completed scores, and the twelve recorded runs behind the Kalman delayed-report cell. Opening run `d0763abb6e314930` selected the matching evaluation case and preserved truth/input playback. Desktop matrix inspection used 1440 × 1050. At 360 × 900, the matrix scrolls inside its own container, details stack, and page width and scroll width both remain 360 pixels. Empty and running states were exercised live; failure eligibility and launch recovery were covered by automated tests.

@@ -15,6 +15,8 @@ uv run fusion serve
 
 Open [Fusion Lab](http://127.0.0.1:8840). Expand **Run an experiment**, select the systems, and run a case or the fixed suite. Results persist in `.fusion/` across restarts. Use `FUSION_DATA=/absolute/directory` for a separate workspace.
 
+Scrub the playback timeline to compare actual object positions with returned tracks and their errors. The input panel beside each system shows its current report batch, measurement/arrival/delivery times, report age, received history, exact step message, and initialization information. A valid recorded response confirms receipt. Requests without one are labeled unconfirmed and excluded from received history, including future or interrupted replay steps. This shows the information supplied to the system, not its internal memory or which reports it used.
+
 The fixed suite contains seven scenarios and two seeds per partition. Tuning uses 100 and 101; held-out evaluation uses 1000 and 1001. Seeds below 1000 are reserved for tuning. Freeze candidate settings before evaluating the held-out cases. There is no automatic tuning.
 
 ## Commands
@@ -46,7 +48,19 @@ uv run fusion run CASE_ID kalman --mode grouped
 uv run fusion register /absolute/path/to/system-folder
 ```
 
-`compare` refuses incomplete runs, mixed task modes, different scoring implementations, and unmatched case sets or repetition counts. For multi-case comparisons, pass every run ID from each system. Output includes aggregate and per-scenario results, plus variability across runs. The web table compares runs on the selected exact case; suite-wide aggregates are available through the CLI.
+`compare` refuses incomplete runs, mixed task modes, different scoring implementations, and unmatched case sets or repetition counts. For multi-case comparisons, pass every run ID from each system. Output includes aggregate and per-scenario results, plus variability across runs. The per-case web table compares runs on the selected exact case. The benchmark matrix additionally compares complete evaluations under one fixed definition.
+
+## Headline benchmark score
+
+Use **Run the benchmark** in the web interface, or:
+
+```sh
+uv run fusion benchmark kalman nearest
+```
+
+This runs 28 fixed evaluation cases three times for each preserved system version. The matrix shows overall reconstruction points out of 100, all seven scenario scores, and the range across attempts. Click a scenario score to open its recorded runs in playback. A failed or incomplete system evaluation gets no headline score.
+
+Perfect reconstruction earns 100; an empty tracker or worse earns 0. Points are not percent accuracy. Identity continuity and response time remain separate. Only identical benchmark fingerprints appear together. Existing tuning/demo results remain experiments and are not retroactively promoted to benchmark scores. See [the scoring definition](docs/scoring.md#versioned-benchmark-points).
 
 ## Build a system
 
@@ -70,9 +84,12 @@ Each run contains the executed system snapshot, public requests, validated track
 uv run pytest -q
 uv run ruff check src systems tests
 pnpm --dir web build
+pnpm --dir web test
 ```
 
 Fixtures cover GOSPA penalties, identity swaps, association continuity, deterministic generation and replay, hidden-field exclusion, delayed delivery, protocol failures, blocked-input timeouts, artifact tampering, both-sensor updates, and comparison boundaries. See [the implementation verification record](docs/verification.md) for executed commands and actual results.
+
+The frontend data tests use Node 22.18 or newer and verify that playback never presents future or unacknowledged requests as received inputs.
 
 ## Current limits
 
@@ -83,4 +100,4 @@ Fixtures cover GOSPA penalties, identity swaps, association continuity, determin
 - System bundles currently have a 256 MiB limit. Large model packages need that limit raised and sufficient local resources; a shipped large-model candidate is not included. Executables or dependencies outside the bundle must be pinned separately by the system author.
 - Runs execute serially through the UI. There are no user accounts, remote workers, visual system editor, or experiment cancellation control. Stop the server to end its session; unfinished jobs are reported as interrupted on the next startup.
 - Velocity scoring is available only where a candidate provides velocity. Uncertainty scoring is not implemented.
-- The web UI exposes per-case comparisons and synchronized playback. The CLI additionally computes suite-level and per-scenario aggregates.
+- The web UI exposes the fixed benchmark matrix, per-case comparisons, and synchronized playback. The CLI additionally compares matching arbitrary sets of runs.

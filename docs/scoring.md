@@ -36,4 +36,24 @@ On failure, score only the validated prefix and label its scope as partial. Expe
 
 Multi-run comparisons require the same case and repetition counts for each system version. Aggregates pool matched squared errors for RMSE, sum identity/missed/false counts, and weight mean GOSPA by scored tick count. Per-scenario aggregates and the standard deviation of run-level mean GOSPA are reported separately. The overall standard deviation mixes scenario and seed differences; it is not a confidence interval or an estimate of model randomness alone. Repeat identical cases to investigate a stochastic candidate's variability.
 
-No single combined accuracy score or universal winner is produced. A system can have lower position error while generating more false tracks. Grouped control and exploratory cases remain explicitly identified.
+## Versioned benchmark points
+
+`fusion benchmark nearest kalman` and the web benchmark action run Numeric tracking v1: ungrouped tracking, all seven default scenarios, evaluation seeds 1000–1003, and three complete attempts per system. Each attempt contains 28 cases, for 84 runs per system. The existing two-seed experiment suite and arbitrary `compare` selections do not award benchmark points.
+
+For each case, the reference error is the mean GOSPA of a tracker returning no tracks over its complete truth timeline. With the fixed parameters above, each tick contributes `sqrt(50 * living_object_count)` meters to that reference. Each run earns:
+
+```text
+points = 100 * max(0, 1 - mean_gospa_m / empty_tracker_mean_gospa_m)
+```
+
+Perfect reconstruction earns 100. An empty tracker earns 0; worse errors also earn 0. Clipping happens for each run before averaging. Raw GOSPA remains visible to distinguish scores tied at the floor. These points are not percent accuracy and do not include identity continuity, velocity, uncertainty, runtime, or cost. Identity counts and measured response latency are displayed separately. Cost is unavailable.
+
+Each scenario is the mean of its four case scores. An attempt is the mean of its seven scenario scores. The headline averages three attempt scores. Display rounding never affects aggregation. The attempt minimum and maximum describe three repeated complete suites, not a confidence interval or a guarantee of future behavior. Deterministic saved-output scoring does not imply deterministic candidate behavior.
+
+An evaluation records its expected case/attempt slots before executing, snapshots each candidate once, and executes that preserved version for every run. Every slot must contain a distinct complete run with the correct case, system version, task, evaluator, environment, response budgets, and 121-step timeline. Missing, failed, duplicate, or incompatible runs prevent a headline for that system. Failures stop that system's evaluation, preserve diagnostic runs, and allow other selected systems to finish. A retry creates a new evaluation; the UI keeps both. There is no best-attempt selection.
+
+The suite fingerprint binds the complete case manifests and artifact hashes, seeds, scoring implementation, runner, dependencies/environment, formula, repeat count, and budgets. Suite files are immutable by application convention. New generation or implementation changes produce a different fingerprint, even under the same human-readable family name. The matrix displays one fingerprint at a time; it never compares different definitions. Re-scoring also rejects implementation/environment drift. The initial budgets are 5 seconds per step and 30 seconds for initialization.
+
+Definitions are stored under `.fusion/benchmarks/suites/`. Each evaluation preserves its plan, system snapshots, report, and hashes under `.fusion/benchmarks/evaluations/`. Run artifacts remain in the ordinary run store and open in synchronized playback. System bundle hashes cannot pin an external service or dependencies outside the bundle; authors must preserve those separately.
+
+A benchmark score describes this suite. A system can improve its score while regressing on one scenario or identity continuity, so the matrix and raw details remain part of the result. Grouped control, tuning, and exploratory cases cannot earn this headline score.

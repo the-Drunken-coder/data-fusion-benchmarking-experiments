@@ -11,9 +11,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .generate import generate
+from .benchmark import run_benchmark
 from .report import run_detail
 from .runner import run_candidate
-from .schema import SCENARIOS, CaseConfig, ExperimentRequest
+from .schema import SCENARIOS, BenchmarkRequest, CaseConfig, ExperimentRequest
 from .storage import ROOT, data_root, read_json, write_json
 from .systems import load_systems
 
@@ -33,6 +34,14 @@ async def lifespan(app: FastAPI):
                 failure="Interrupted before run completion",
                 summary_scope="partial outputs retained; scoring unavailable",
             )
+            write_json(path, value)
+    for path in (data_root() / "benchmarks/evaluations").glob("*/report.json"):
+        value = read_json(path)
+        if value["status"] == "running" and not owner_alive(value):
+            value.update(status="failed", error="Benchmark interrupted before completion")
+            for system in value["systems"]:
+                if system["status"] == "running":
+                    system.update(status="failed", error=value["error"], result=None)
             write_json(path, value)
     yield
 
@@ -84,6 +93,11 @@ def catalog():
         "cases": cases,
         "runs": sorted(runs, key=lambda run: run["created_at"], reverse=True),
         "jobs": jobs,
+        "benchmarks": sorted(
+            [read_json(path) for path in (root / "benchmarks/evaluations").glob("*/report.json")],
+            key=lambda value: value["created_at"],
+            reverse=True,
+        ),
     }
 
 
@@ -160,6 +174,10 @@ def launch(request: ExperimentRequest):
             finally:
                 execution_lock.release()
 
+    return start_job(job, path, execute)
+
+
+def start_job(job, path, execute):
     if not execution_lock.acquire(blocking=False):
         raise HTTPException(409, "An experiment is already running")
     try:
@@ -176,6 +194,46 @@ def launch(request: ExperimentRequest):
             execution_lock.release()
         raise
     return response_job
+
+
+@app.post("/api/benchmarks", status_code=202)
+def launch_benchmark(request: BenchmarkRequest):
+    systems = load_systems()
+    if len(set(request.system_ids)) != len(request.system_ids) or any(
+        s not in systems or "ungrouped" not in systems[s][0].modes for s in request.system_ids
+    ):
+        raise HTTPException(422, "Select distinct systems supporting ungrouped tracking")
+    job_id = uuid.uuid4().hex[:16]
+    path = data_root() / "jobs" / f"{job_id}.json"
+    job = {
+        "job_id": job_id,
+        "kind": "benchmark",
+        "status": "running",
+        "run_ids": [],
+        "case_id": None,
+        "requested": len(request.system_ids) * 84,
+        "error": None,
+        "owner_pid": os.getpid(),
+    }
+
+    def progress(run):
+        job["run_ids"].append(run["run_id"])
+        job["case_id"] = run["case_id"]
+        write_json(path, job)
+
+    def execute():
+        try:
+            report = run_benchmark(request.system_ids, evaluation_id=job_id, progress=progress)
+            job.update(status=report["status"], error=report["error"])
+        except Exception as error:
+            job.update(status="failed", error=str(error))
+        finally:
+            try:
+                write_json(path, job)
+            finally:
+                execution_lock.release()
+
+    return start_job(job, path, execute)
 
 
 @app.get("/api/jobs/{job_id}")

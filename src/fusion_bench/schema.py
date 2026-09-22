@@ -148,3 +148,7 @@ class ExperimentRequest(Contract):
     system_ids: Annotated[list[str], Field(min_length=1, max_length=6)]
     mode: Mode = "ungrouped"
     suite: bool = False
+
+
+class BenchmarkRequest(Contract):
+    system_ids: Annotated[list[str], Field(min_length=1, max_length=6)]
