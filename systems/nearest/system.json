@@ -1,0 +1,8 @@
+{
+  "id": "nearest",
+  "name": "Nearest report",
+  "version": "1.0",
+  "command": ["{python}", "main.py"],
+  "modes": ["ungrouped", "grouped"],
+  "description": "Standard-library protocol example: nearest position within 10 m, no velocity prediction, 3 s expiry. Processes arrival order and discards stale updates per track."
+}

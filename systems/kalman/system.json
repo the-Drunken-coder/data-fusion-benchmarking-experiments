@@ -1,0 +1,8 @@
+{
+  "id": "kalman",
+  "name": "Kalman baseline",
+  "version": "1.0",
+  "command": ["{python}", "main.py"],
+  "modes": ["ungrouped", "grouped"],
+  "description": "Stone Soup constant-velocity Kalman filter, gated global nearest-neighbor association per sensor scan, observation-only initiation, 5 s expiry. Drops measurements older than the last accepted scan."
+}

@@ -1,0 +1,30 @@
+[project]
+name = "fusion-bench"
+version = "0.1.0"
+description = "Local, reproducible experiments for black-box data fusion systems"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "stonesoup==1.9.1",
+  "numpy==2.2.6",
+  "scipy==1.15.3",
+  "pydantic==2.11.7",
+  "fastapi==0.116.1",
+  "uvicorn==0.35.0",
+  "matplotlib==3.10.5",
+]
+
+[project.scripts]
+fusion = "fusion_bench.cli:main"
+
+[dependency-groups]
+dev = ["pytest==8.4.1", "httpx==0.28.1", "ruff==0.12.9"]
+
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
